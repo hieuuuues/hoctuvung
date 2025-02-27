@@ -770,6 +770,26 @@
           bottom: max(20px, env(safe-area-inset-bottom));
         }
       }
+
+      #user-input {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px; /* Kích thước phù hợp cho mobile */
+        border: 2px solid var(--primary-color);
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.3s;
+        -webkit-appearance: none; /* Loại bỏ style mặc định trên iOS */
+        -moz-appearance: none;
+        appearance: none;
+      }
+
+      /* Đảm bảo không zoom trên mobile khi focus */
+      @media screen and (max-width: 768px) {
+        #user-input {
+          font-size: 16px !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -867,6 +887,7 @@
           this.bestStreak = 0;
           this.startTime = Date.now();
           this.timer = null;
+          this.hintsRemaining = 3; // Số gợi ý còn lại
 
           // Khởi tạo giao diện
           this.updateLevelDisplay();
@@ -875,6 +896,7 @@
           this.nextWord();
           this.updateScore();
           this.startTimer();
+          this.updateHintCount();
         }
 
         loadVocabularyByLevel(level) {
@@ -916,6 +938,14 @@
             </div>
         `;
           document.querySelector(".header-content").appendChild(levelText);
+        }
+
+        updateHintCount() {
+          const hintButton = document.getElementById("hint-button");
+          if (hintButton) {
+            hintButton.innerHTML = `<i class="fas fa-lightbulb"></i> Hint (${this.hintsRemaining})`;
+            hintButton.disabled = this.hintsRemaining <= 0;
+          }
         }
 
         nextWord() {
@@ -962,6 +992,7 @@
             [letters[i], letters[j]] = [letters[j], letters[i]];
           }
           let scrambled = letters.join("");
+          // Ensure the scrambled word is different from the original
           while (scrambled === word && word.length > 1) {
             scrambled = this.scrambleWord(word);
           }
@@ -971,32 +1002,75 @@
         checkAnswer() {
           if (!this.currentWord) return;
 
-          const userInput = document
-            .getElementById("user-input")
-            .value.trim()
-            .toLowerCase();
+          const userInput = document.getElementById("user-input").value;
+
+          // Chuẩn hóa input: loại bỏ dấu cách thừa ở đầu, cuối và giữa các từ
+          const normalizedInput = userInput
+            .trim() // Xóa dấu cách đầu và cuối
+            .replace(/\s+/g, " ") // Thay thế nhiều dấu cách thành một dấu
+            .toLowerCase(); // Chuyển về chữ thường
+
           const correctAnswer = this.currentWord.english.toLowerCase();
 
           this.total++;
 
-          if (userInput === correctAnswer) {
+          if (normalizedInput === correctAnswer) {
             this.score++;
             this.streak++;
             this.bestStreak = Math.max(this.streak, this.bestStreak);
             this.showNotification("Correct! 🎉", "success");
             this.showConfetti();
+            this.updateWordProgress(true);
           } else {
             this.streak = 0;
             this.showNotification(
               `Incorrect! The answer was: ${correctAnswer} 😕`,
               "error"
             );
+            this.updateWordProgress(false);
           }
 
           this.updateScore();
           this.updateProgress();
 
           setTimeout(() => this.nextWord(), 1500);
+        }
+
+        updateWordProgress(isCorrect) {
+          try {
+            const folders = JSON.parse(
+              localStorage.getItem("vocabulary_folders") || "[]"
+            );
+            const folderIndex = folders.findIndex(
+              (f) => f.id === this.currentFolderId
+            );
+
+            if (folderIndex !== -1) {
+              const wordIndex = folders[folderIndex].vocabulary.findIndex(
+                (w) => w.id === this.currentWord.id
+              );
+
+              if (wordIndex !== -1) {
+                const word = folders[folderIndex].vocabulary[wordIndex];
+                word.reviewCount = (word.reviewCount || 0) + 1;
+                word.lastReviewed = Date.now();
+
+                if (!isCorrect) {
+                  word.mistakes = (word.mistakes || 0) + 1;
+                  word.level = Math.max(0, word.level - 25);
+                } else {
+                  word.level = Math.min(100, word.level + 25);
+                }
+
+                localStorage.setItem(
+                  "vocabulary_folders",
+                  JSON.stringify(folders)
+                );
+              }
+            }
+          } catch (error) {
+            console.error("Error updating word progress:", error);
+          }
         }
 
         updateScore() {
@@ -1071,28 +1145,27 @@
         }
 
         restartQuiz() {
-          // Reset all quiz states
           this.remainingWords = [...this.vocabulary];
           this.score = 0;
           this.total = 0;
           this.streak = 0;
+          this.hintsRemaining = 3;
           this.startTime = Date.now();
 
-          // Remove completion modal
           const modal = document.querySelector(".completion-modal");
           if (modal) {
             modal.remove();
           }
 
-          // Update displays
           this.updateScore();
           this.updateProgress();
+          this.updateHintCount();
+
           const remainingElement = document.getElementById("words-remaining");
           if (remainingElement) {
             remainingElement.textContent = this.remainingWords.length;
           }
 
-          // Start new quiz
           this.nextWord();
         }
 
@@ -1114,16 +1187,23 @@
         }
 
         showHint() {
-          if (!this.currentWord) return;
+          if (!this.currentWord || this.hintsRemaining <= 0) {
+            this.showNotification("No hints remaining!", "error");
+            return;
+          }
 
           const word = this.currentWord.english;
-          const hint = `First letter: ${word[0]}, Length: ${word.length}, Vietnamese meaning: ${this.currentWord.vietnamese}`;
-          this.showNotification(hint, "success");
+          const hints = [
+            `First letter: "${word[0]}"`,
+            `Length: ${word.length} letters`,
+            `Vietnamese meaning: ${this.currentWord.vietnamese}`,
+          ];
 
-          // Penalty for using hint
-          this.total++;
-          this.updateScore();
-          this.updateProgress();
+          const hintIndex = 3 - this.hintsRemaining;
+          this.showNotification(hints[hintIndex], "info");
+
+          this.hintsRemaining--;
+          this.updateHintCount();
         }
 
         showConfetti() {
@@ -1171,9 +1251,30 @@
               }
             });
 
-            // Handle input validation
+            // Handle input validation - cho phép chữ cái và dấu cách
             inputElement.addEventListener("input", (e) => {
-              e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+              // Chỉ giữ lại chữ cái và dấu cách, loại bỏ các ký tự đặc biệt khác
+              let value = e.target.value;
+
+              // Cho phép nhiều dấu cách, sẽ được chuẩn hóa khi submit
+              value = value.replace(/[^a-zA-Z\s]/g, "");
+
+              e.target.value = value;
+            });
+
+            // Thêm sự kiện keydown để xử lý dấu cách
+            inputElement.addEventListener("keydown", (e) => {
+              // Cho phép dấu cách được nhập
+              if (e.key === " ") {
+                e.stopPropagation(); // Ngăn chặn sự kiện lan truyền
+              }
+            });
+
+            // Thêm sự kiện để xử lý input từ mobile
+            inputElement.addEventListener("beforeinput", (e) => {
+              if (e.inputType === "insertText" && e.data === " ") {
+                e.stopPropagation();
+              }
             });
           }
 
@@ -1194,6 +1295,18 @@
               this.startTimer();
             }
           });
+
+          // Add back button
+          const backButton = document.querySelector(".back-button");
+          if (backButton) {
+            backButton.addEventListener("click", goBack);
+          }
+
+          // Add hint button listener
+          const hintButton = document.getElementById("hint-button");
+          if (hintButton) {
+            hintButton.addEventListener("click", () => this.showHint());
+          }
         }
       }
 
@@ -1214,7 +1327,9 @@
       }
 
       // Initialize quiz when page loads
-      const quiz = new WordScrambleQuiz();
+      document.addEventListener("DOMContentLoaded", () => {
+        window.quiz = new WordScrambleQuiz();
+      });
     </script>
   </body>
 </html>
