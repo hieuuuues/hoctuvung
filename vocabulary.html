@@ -1898,7 +1898,34 @@
         </div>
       </div>
     </div>
+    <div class="share-section">
+      <button class="control-button" onclick="vocabularyManager.exportData()">
+        <i class="fas fa-share-alt"></i> Share Vocabulary
+      </button>
+      <button
+        class="control-button"
+        onclick="vocabularyManager.showImportDialog()"
+      >
+        <i class="fas fa-download"></i> Import Vocabulary
+      </button>
+    </div>
 
+    <!-- Dialog cho Import -->
+    <div id="importDialog" class="modal">
+      <div class="modal-content">
+        <h2>Import Vocabulary</h2>
+        <p>Paste your vocabulary code here:</p>
+        <textarea id="importCode" rows="4"></textarea>
+        <div class="modal-buttons">
+          <button onclick="vocabularyManager.importData()">Import</button>
+          <button
+            onclick="document.getElementById('importDialog').style.display='none'"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="settings-modal" id="settingsModal">
       <div class="settings-content">
         <div class="settings-header">
@@ -1945,34 +1972,7 @@
 
     <div class="notification" id="notification"></div>
     <!-- Thêm vào vocabulary.html -->
-    <div class="share-section">
-      <button class="control-button" onclick="vocabularyManager.exportData()">
-        <i class="fas fa-share-alt"></i> Share Vocabulary
-      </button>
-      <button
-        class="control-button"
-        onclick="vocabularyManager.showImportDialog()"
-      >
-        <i class="fas fa-download"></i> Import Vocabulary
-      </button>
-    </div>
 
-    <!-- Dialog cho Import -->
-    <div id="importDialog" class="modal">
-      <div class="modal-content">
-        <h2>Import Vocabulary</h2>
-        <p>Paste your vocabulary code here:</p>
-        <textarea id="importCode" rows="4"></textarea>
-        <div class="modal-buttons">
-          <button onclick="vocabularyManager.importData()">Import</button>
-          <button
-            onclick="document.getElementById('importDialog').style.display='none'"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
     <script>
       class VocabularyManager {
         constructor() {
@@ -2115,7 +2115,6 @@
         }
         exportData() {
           try {
-            // Lấy danh sách folders từ localStorage thay vì dùng this.folders
             const folders = JSON.parse(
               localStorage.getItem("vocabulary_folders") || "[]"
             );
@@ -2128,7 +2127,7 @@
               return;
             }
 
-            // Tạo object chứa thông tin cần chia sẻ
+            // Tạo dữ liệu để chia sẻ
             const shareData = {
               folderName: currentFolder.name,
               vocabulary: currentFolder.vocabulary,
@@ -2136,16 +2135,59 @@
               version: "1.0",
             };
 
-            // Mã hóa dữ liệu
-            const jsonString = JSON.stringify(shareData);
-            const compressedData = LZString.compressToBase64(jsonString);
+            // Tạo mã 6 số ngẫu nhiên
+            const shareCode = this.generateSixDigitCode();
+
+            // Lưu dữ liệu vào localStorage với key là mã 6 số
+            const sharedData = JSON.parse(
+              localStorage.getItem("shared_vocabulary") || "{}"
+            );
+            sharedData[shareCode] = shareData;
+            localStorage.setItem(
+              "shared_vocabulary",
+              JSON.stringify(sharedData)
+            );
 
             // Hiển thị dialog với mã chia sẻ
-            this.showShareDialog(compressedData);
+            this.showShareDialog(shareCode);
           } catch (error) {
             console.error("Export error:", error);
             this.showNotification("Failed to generate share code", "error");
           }
+        }
+
+        generateSixDigitCode() {
+          // Tạo mã 6 số ngẫu nhiên và đảm bảo không trùng lặp
+          let code;
+          const sharedData = JSON.parse(
+            localStorage.getItem("shared_vocabulary") || "{}"
+          );
+
+          do {
+            code = Math.floor(100000 + Math.random() * 900000).toString();
+          } while (sharedData.hasOwnProperty(code));
+
+          return code;
+        }
+
+        showShareDialog(shareCode) {
+          const modal = document.createElement("div");
+          modal.className = "modal";
+          modal.innerHTML = `
+        <div class="modal-content">
+            <h2>Share Vocabulary</h2>
+            <p>Share this 6-digit code with others:</p>
+            <div class="share-code">${shareCode}</div>
+            <div class="modal-buttons">
+                <button onclick="navigator.clipboard.writeText('${shareCode}').then(() => vocabularyManager.showNotification('Code copied!', 'success'))">
+                    Copy Code
+                </button>
+                <button onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+          document.body.appendChild(modal);
+          modal.style.display = "block";
         }
 
         compressData(jsonString) {
@@ -2188,48 +2230,31 @@
               .getElementById("importCode")
               .value.trim();
 
-            // Kiểm tra mã nhập vào
-            if (!importCode) {
-              this.showNotification("Please enter a share code", "error");
+            if (
+              !importCode ||
+              importCode.length !== 6 ||
+              !/^\d+$/.test(importCode)
+            ) {
+              this.showNotification(
+                "Please enter a valid 6-digit code",
+                "error"
+              );
               return;
             }
 
-            // Log để debug
-            console.log("Import code:", importCode);
+            // Lấy dữ liệu từ localStorage
+            const sharedData = JSON.parse(
+              localStorage.getItem("shared_vocabulary") || "{}"
+            );
+            const importedData = sharedData[importCode];
 
-            // Giải nén dữ liệu
-            let decompressedData;
-            try {
-              decompressedData = LZString.decompressFromBase64(importCode);
-              console.log("Decompressed data:", decompressedData);
-
-              if (!decompressedData) {
-                this.showNotification(
-                  "Unable to decompress share code",
-                  "error"
-                );
-                return;
-              }
-            } catch (error) {
-              console.error("Decompression error:", error);
-              this.showNotification("Invalid share code format", "error");
-              return;
-            }
-
-            // Parse JSON
-            let importedData;
-            try {
-              importedData = JSON.parse(decompressedData);
-              console.log("Parsed data:", importedData);
-            } catch (error) {
-              console.error("JSON parse error:", error);
-              this.showNotification("Invalid data format", "error");
+            if (!importedData) {
+              this.showNotification("Invalid share code", "error");
               return;
             }
 
             // Validate dữ liệu
             if (!this.validateImportedData(importedData)) {
-              console.error("Data validation failed:", importedData);
               this.showNotification(
                 "Invalid vocabulary data structure",
                 "error"
@@ -2264,6 +2289,13 @@
             folders.push(newFolder);
             localStorage.setItem("vocabulary_folders", JSON.stringify(folders));
 
+            // Xóa mã share đã sử dụng
+            delete sharedData[importCode];
+            localStorage.setItem(
+              "shared_vocabulary",
+              JSON.stringify(sharedData)
+            );
+
             // Đóng dialog và hiện thông báo
             document.getElementById("importDialog").style.display = "none";
             document.getElementById("importCode").value = "";
@@ -2277,7 +2309,7 @@
             localStorage.setItem("current_folder_id", newFolder.id);
             localStorage.setItem("current_folder_name", newFolder.name);
 
-            // Reload trang để hiển thị folder mới
+            // Reload trang
             window.location.reload();
           } catch (error) {
             console.error("Import error:", error);
