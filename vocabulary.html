@@ -9,6 +9,8 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
+    <!-- Thêm vào <head> của vocabulary.html -->
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -1664,6 +1666,66 @@
       .dark-mode .dictionary-divider {
         border-top-color: rgba(255, 255, 255, 0.1);
       }
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+      }
+
+      .modal-content {
+        position: relative;
+        background-color: var(--background-light);
+        margin: 15% auto;
+        padding: 20px;
+        border-radius: 10px;
+        width: 80%;
+        max-width: 500px;
+      }
+
+      .dark-mode .modal-content {
+        background-color: var(--card-dark);
+        color: var(--text-dark);
+      }
+
+      #importCode {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        border: 1px solid var(--border-light);
+        background: var(--background-light);
+      }
+
+      .dark-mode #importCode {
+        background: var(--card-dark);
+        color: var(--text-dark);
+        border-color: var(--border-dark);
+      }
+
+      .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .share-code {
+        background: var(--card-light);
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+        word-break: break-all;
+        font-family: monospace;
+      }
+
+      .dark-mode .share-code {
+        background: var(--card-dark);
+      }
     </style>
   </head>
   <body>
@@ -1882,6 +1944,35 @@
     </button>
 
     <div class="notification" id="notification"></div>
+    <!-- Thêm vào vocabulary.html -->
+    <div class="share-section">
+      <button class="control-button" onclick="vocabularyManager.exportData()">
+        <i class="fas fa-share-alt"></i> Share Vocabulary
+      </button>
+      <button
+        class="control-button"
+        onclick="vocabularyManager.showImportDialog()"
+      >
+        <i class="fas fa-download"></i> Import Vocabulary
+      </button>
+    </div>
+
+    <!-- Dialog cho Import -->
+    <div id="importDialog" class="modal">
+      <div class="modal-content">
+        <h2>Import Vocabulary</h2>
+        <p>Paste your vocabulary code here:</p>
+        <textarea id="importCode" rows="4"></textarea>
+        <div class="modal-buttons">
+          <button onclick="vocabularyManager.importData()">Import</button>
+          <button
+            onclick="document.getElementById('importDialog').style.display='none'"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
     <script>
       class VocabularyManager {
         constructor() {
@@ -2022,7 +2113,132 @@
             this.vocabulary = [];
           }
         }
+        exportData() {
+          try {
+            // Lấy dữ liệu từ thư mục hiện tại
+            const currentFolder = this.folders.find(
+              (f) => f.id === this.currentFolderId
+            );
+            if (!currentFolder) {
+              this.showNotification("No folder selected", "error");
+              return;
+            }
 
+            // Tạo object chứa thông tin cần chia sẻ
+            const shareData = {
+              folderName: currentFolder.name,
+              vocabulary: currentFolder.vocabulary,
+              timestamp: Date.now(),
+              version: "1.0",
+            };
+
+            // Mã hóa dữ liệu
+            const jsonString = JSON.stringify(shareData);
+            const compressedData = this.compressData(jsonString);
+            const shareCode = btoa(compressedData); // Convert to base64
+
+            // Hiển thị dialog với mã chia sẻ
+            this.showShareDialog(shareCode);
+          } catch (error) {
+            console.error("Export error:", error);
+            this.showNotification("Failed to generate share code", "error");
+          }
+        }
+
+        compressData(jsonString) {
+          // Sử dụng LZString để nén dữ liệu
+          return LZString.compressToBase64(jsonString);
+        }
+
+        decompressData(compressed) {
+          // Giải nén dữ liệu
+          return LZString.decompressFromBase64(compressed);
+        }
+
+        showShareDialog(shareCode) {
+          const modal = document.createElement("div");
+          modal.className = "modal";
+          modal.innerHTML = `
+            <div class="modal-content">
+                <h2>Share Vocabulary</h2>
+                <p>Copy this code and share it with others:</p>
+                <div class="share-code">${shareCode}</div>
+                <div class="modal-buttons">
+                    <button onclick="navigator.clipboard.writeText('${shareCode}').then(() => vocabularyManager.showNotification('Code copied!', 'success'))">
+                        Copy Code
+                    </button>
+                    <button onclick="this.closest('.modal').remove()">Close</button>
+                </div>
+            </div>
+        `;
+          document.body.appendChild(modal);
+          modal.style.display = "block";
+        }
+
+        showImportDialog() {
+          document.getElementById("importDialog").style.display = "block";
+        }
+
+        importData() {
+          try {
+            const importCode = document
+              .getElementById("importCode")
+              .value.trim();
+            if (!importCode) {
+              this.showNotification("Please enter a share code", "error");
+              return;
+            }
+
+            // Giải mã và parse dữ liệu
+            const decodedData = atob(importCode); // Convert from base64
+            const decompressedData = this.decompressData(decodedData);
+            const importedData = JSON.parse(decompressedData);
+
+            // Validate dữ liệu
+            if (!this.validateImportedData(importedData)) {
+              this.showNotification("Invalid share code", "error");
+              return;
+            }
+
+            // Tạo folder mới với dữ liệu đã import
+            const newFolder = {
+              id: "folder_" + Date.now(),
+              name: `${importedData.folderName} (Imported)`,
+              vocabulary: importedData.vocabulary,
+              createdAt: Date.now(),
+            };
+
+            // Thêm folder mới vào danh sách
+            this.folders.push(newFolder);
+            this.saveVocabulary();
+
+            // Đóng dialog và hiện thông báo
+            document.getElementById("importDialog").style.display = "none";
+            document.getElementById("importCode").value = "";
+            this.showNotification(
+              "Vocabulary imported successfully!",
+              "success"
+            );
+            this.displayVocabulary();
+          } catch (error) {
+            console.error("Import error:", error);
+            this.showNotification("Failed to import vocabulary", "error");
+          }
+        }
+
+        validateImportedData(data) {
+          return (
+            data &&
+            data.folderName &&
+            Array.isArray(data.vocabulary) &&
+            data.vocabulary.every(
+              (word) =>
+                word.english &&
+                word.vietnamese &&
+                typeof word.level === "number"
+            )
+          );
+        }
         saveVocabulary() {
           try {
             // Lấy danh sách thư mục
