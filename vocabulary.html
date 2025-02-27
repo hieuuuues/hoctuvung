@@ -2182,47 +2182,103 @@
           document.getElementById("importDialog").style.display = "block";
         }
 
-        importData() {
+        async importData() {
           try {
             const importCode = document
               .getElementById("importCode")
               .value.trim();
+
+            // Kiểm tra mã nhập vào
             if (!importCode) {
               this.showNotification("Please enter a share code", "error");
               return;
             }
 
-            // Giải mã và parse dữ liệu
-            const decodedData = atob(importCode); // Convert from base64
-            const decompressedData = this.decompressData(decodedData);
-            const importedData = JSON.parse(decompressedData);
+            // Log để debug
+            console.log("Import code:", importCode);
+
+            // Giải nén dữ liệu
+            let decompressedData;
+            try {
+              decompressedData = LZString.decompressFromBase64(importCode);
+              console.log("Decompressed data:", decompressedData);
+
+              if (!decompressedData) {
+                this.showNotification(
+                  "Unable to decompress share code",
+                  "error"
+                );
+                return;
+              }
+            } catch (error) {
+              console.error("Decompression error:", error);
+              this.showNotification("Invalid share code format", "error");
+              return;
+            }
+
+            // Parse JSON
+            let importedData;
+            try {
+              importedData = JSON.parse(decompressedData);
+              console.log("Parsed data:", importedData);
+            } catch (error) {
+              console.error("JSON parse error:", error);
+              this.showNotification("Invalid data format", "error");
+              return;
+            }
 
             // Validate dữ liệu
             if (!this.validateImportedData(importedData)) {
-              this.showNotification("Invalid share code", "error");
+              console.error("Data validation failed:", importedData);
+              this.showNotification(
+                "Invalid vocabulary data structure",
+                "error"
+              );
               return;
             }
+
+            // Lấy danh sách thư mục hiện tại
+            const folders = JSON.parse(
+              localStorage.getItem("vocabulary_folders") || "[]"
+            );
 
             // Tạo folder mới với dữ liệu đã import
             const newFolder = {
               id: "folder_" + Date.now(),
               name: `${importedData.folderName} (Imported)`,
-              vocabulary: importedData.vocabulary,
+              vocabulary: importedData.vocabulary.map((word) => ({
+                ...word,
+                id: this.generateUniqueId(),
+                startTime: Date.now(),
+                lastReviewed: null,
+                reviewCount: word.reviewCount || 0,
+                mistakes: word.mistakes || 0,
+                level: word.level || 0,
+              })),
               createdAt: Date.now(),
+              lastModified: Date.now(),
+              wordCount: importedData.vocabulary.length,
             };
 
             // Thêm folder mới vào danh sách
-            this.folders.push(newFolder);
-            this.saveVocabulary();
+            folders.push(newFolder);
+            localStorage.setItem("vocabulary_folders", JSON.stringify(folders));
 
             // Đóng dialog và hiện thông báo
             document.getElementById("importDialog").style.display = "none";
             document.getElementById("importCode").value = "";
             this.showNotification(
-              "Vocabulary imported successfully!",
+              `Successfully imported ${importedData.vocabulary.length} words!`,
               "success"
             );
-            this.displayVocabulary();
+
+            // Chuyển đến folder mới import
+            this.currentFolderId = newFolder.id;
+            localStorage.setItem("current_folder_id", newFolder.id);
+            localStorage.setItem("current_folder_name", newFolder.name);
+
+            // Reload trang để hiển thị folder mới
+            window.location.reload();
           } catch (error) {
             console.error("Import error:", error);
             this.showNotification("Failed to import vocabulary", "error");
@@ -2230,17 +2286,67 @@
         }
 
         validateImportedData(data) {
-          return (
-            data &&
-            data.folderName &&
-            Array.isArray(data.vocabulary) &&
-            data.vocabulary.every(
-              (word) =>
-                word.english &&
-                word.vietnamese &&
-                typeof word.level === "number"
-            )
-          );
+          // Kiểm tra cấu trúc cơ bản của data
+          if (!data || typeof data !== "object") {
+            console.error("Data is not an object");
+            return false;
+          }
+
+          // Kiểm tra các trường bắt buộc
+          if (!data.folderName || typeof data.folderName !== "string") {
+            console.error("Missing or invalid folderName");
+            return false;
+          }
+
+          if (!Array.isArray(data.vocabulary)) {
+            console.error("Vocabulary is not an array");
+            return false;
+          }
+
+          // Kiểm tra từng từ trong vocabulary
+          for (const word of data.vocabulary) {
+            if (!this.validateWordStructure(word)) {
+              console.error("Invalid word structure:", word);
+              return false;
+            }
+          }
+
+          // Kiểm tra timestamp và version
+          if (!data.timestamp || typeof data.timestamp !== "number") {
+            console.error("Missing or invalid timestamp");
+            return false;
+          }
+
+          if (!data.version || typeof data.version !== "string") {
+            console.error("Missing or invalid version");
+            return false;
+          }
+
+          return true;
+        }
+
+        validateWordStructure(word) {
+          // Kiểm tra cấu trúc của từng từ
+          const requiredFields = {
+            english: "string",
+            vietnamese: "string",
+            level: "number",
+          };
+
+          for (const [field, type] of Object.entries(requiredFields)) {
+            if (!word.hasOwnProperty(field) || typeof word[field] !== type) {
+              console.error(`Missing or invalid ${field} in word:`, word);
+              return false;
+            }
+          }
+
+          // Kiểm tra level có hợp lệ
+          if (word.level < 0 || word.level > 100) {
+            console.error("Invalid level value:", word.level);
+            return false;
+          }
+
+          return true;
         }
         saveVocabulary() {
           try {
