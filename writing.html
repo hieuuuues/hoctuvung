@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Writing Practice</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+    <style>
+      :root {
+        /* Base Colors */
+        --primary-color: #4ecca3;
+        --primary-dark: #45b393;
+        --primary-light: #5dddb4;
+        --secondary-color: #3498db;
+        --error-color: #e74c3c;
+
+        /* Light Theme */
+        --background-light: #ffffff;
+        --text-light: #2c3e50;
+        --card-light: #f8f9fa;
+        --border-light: #e0e0e0;
+
+        /* Dark Theme */
+        --background-dark: #0f0f1a;
+        --text-dark: #e1e1e1;
+        --card-dark: #1a1a2e;
+        --border-dark: #30475e;
+        --text-muted-dark: #a5a5a5;
+        --card-hover-dark: #16213e;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: "Inter", "Arial", sans-serif;
+        background-color: var(--background-light);
+        color: var(--text-light);
+        transition: all 0.3s ease;
+      }
+
+      body.dark-mode {
+        background-color: var(--background-dark);
+        color: var(--text-dark);
+      }
+
+      /* Header Styles */
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: var(--card-light);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .dark-mode .header {
+        background: var(--card-dark);
+        border: 1px solid var(--border-dark);
+      }
+
+      .header h1 {
+        color: var(--primary-color);
+        margin: 0;
+      }
+
+      /* Quiz Container */
+      .quiz-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: var(--card-light);
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .dark-mode .quiz-container {
+        background: var(--card-dark);
+        border: 1px solid var(--border-dark);
+      }
+
+      /* Question Container */
+      .question-container {
+        margin-bottom: 30px;
+        padding: 25px;
+        border-radius: 12px;
+        background-color: var(--background-light);
+        border: 1px solid var(--border-light);
+      }
+
+      .dark-mode .question-container {
+        background: var(--card-dark);
+        border: 1px solid var(--border-dark);
+      }
+
+      .question {
+        font-size: 24px;
+        margin-bottom: 20px;
+        text-align: center;
+        color: var(--primary-color);
+      }
+
+      /* Options */
+      .options {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 25px;
+      }
+
+      .option {
+        padding: 20px;
+        background-color: var(--card-light);
+        border: 2px solid var(--primary-color);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        font-size: 16px;
+      }
+
+      .dark-mode .option {
+        background: var(--card-dark);
+        border-color: var(--primary-color);
+        color: var(--text-dark);
+      }
+
+      .option:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+      }
+
+      .option.selected {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
+      .option.correct {
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+        color: white;
+      }
+
+      .option.incorrect {
+        background-color: var(--error-color);
+        border-color: var(--error-color);
+        color: white;
+      }
+
+      /* Controls */
+      .controls {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+        gap: 15px;
+      }
+
+      .control-button {
+        padding: 12px 25px;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .control-button:hover:not(:disabled) {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+      }
+
+      .control-button:disabled {
+        background-color: var(--text-muted-dark);
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+
+      /* Stats and Progress */
+      .progress,
+      .score {
+        text-align: center;
+        margin-bottom: 25px;
+        color: var(--primary-color);
+      }
+
+      .dark-mode .progress,
+      .dark-mode .score {
+        color: var(--primary-light);
+      }
+
+      /* Audio Button */
+      .audio-btn {
+        background: none;
+        border: none;
+        color: var(--primary-color);
+        cursor: pointer;
+        font-size: 24px;
+        padding: 12px;
+        transition: all 0.3s ease;
+        border-radius: 50%;
+      }
+
+      .dark-mode .audio-btn {
+        color: var(--primary-light);
+      }
+
+      .audio-btn:hover {
+        color: var(--primary-dark);
+        background: rgba(78, 204, 163, 0.1);
+      }
+
+      /* Notification */
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        color: white;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Back Button */
+      .back-button {
+        padding: 12px 25px;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .back-button:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+      }
+
+      /* Dark Mode Image Handling */
+      .dark-mode .word-image img {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border-dark);
+      }
+
+      /* Media Queries */
+      @media (max-width: 768px) {
+        .options {
+          grid-template-columns: 1fr;
+        }
+
+        .controls {
+          flex-direction: column;
+        }
+
+        .control-button {
+          width: 100%;
+        }
+
+        .question {
+          font-size: 20px;
+        }
+      }
+
+      /* Additional Dark Mode Elements */
+      .dark-mode input {
+        background: var(--card-dark);
+        color: var(--text-dark);
+        border: 2px solid var(--border-dark);
+      }
+
+      .dark-mode input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 5px rgba(78, 204, 163, 0.3);
+      }
+
+      .dark-mode .stat-value {
+        color: var(--primary-color);
+      }
+
+      .dark-mode .stat-label {
+        color: var(--text-muted-dark);
+      }
+
+      .dark-mode .current-date {
+        color: var(--text-muted-dark);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Writing Practice</h1>
+    </div>
+
+    <div class="quiz-container">
+      <div class="progress">
+        Question <span id="currentQuestion">0</span> of
+        <span id="totalQuestions">0</span>
+      </div>
+
+      <div class="score">Score: <span id="score">0</span></div>
+
+      <div class="question-container">
+        <button class="audio-btn" onclick="writingQuiz.playAudio()">
+          <i class="fas fa-volume-up"></i>
+        </button>
+        <div class="question" id="question"></div>
+        <div class="word-image" id="wordImage"></div>
+        <div class="options" id="options"></div>
+      </div>
+
+      <div class="controls">
+        <button
+          class="control-button"
+          onclick="writingQuiz.previousQuestion()"
+          id="prevBtn"
+        >
+          Previous
+        </button>
+        <button
+          class="control-button"
+          onclick="writingQuiz.checkAnswer()"
+          id="checkBtn"
+        >
+          Check Answer
+        </button>
+        <button
+          class="control-button"
+          onclick="writingQuiz.nextQuestion()"
+          id="nextBtn"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script>
+      class WritingQuiz {
+        constructor() {
+          // Get current folder info from localStorage
+          this.currentFolderId = localStorage.getItem("current_folder_id");
+          this.currentLevel = localStorage.getItem("study_mode_level");
+
+          if (!this.currentFolderId || this.currentLevel === null) {
+            window.location.href = "vocabulary.html";
+            return;
+          }
+
+          // Initialize quiz state
+          this.vocabulary = this.loadVocabulary();
+          this.questions = this.prepareQuestions();
+          this.currentQuestionIndex = 0;
+          this.score = 0;
+          this.selectedAnswer = null;
+          this.answerChecked = false;
+          this.settings = this.loadSettings();
+
+          // Setup
+          this.setupEventListeners();
+          this.updateDisplay();
+          this.applyDarkMode();
+        }
+
+        loadSettings() {
+          return (
+            JSON.parse(localStorage.getItem("settings")) || {
+              darkMode: false,
+              autoPlay: false,
+            }
+          );
+        }
+
+        loadVocabulary() {
+          try {
+            const folders = JSON.parse(
+              localStorage.getItem("vocabulary_folders") || "[]"
+            );
+            const currentFolder = folders.find(
+              (f) => f.id === this.currentFolderId
+            );
+            return currentFolder
+              ? currentFolder.vocabulary.filter(
+                  (word) => word.level === Number(this.currentLevel)
+                )
+              : [];
+          } catch (error) {
+            console.error("Error loading vocabulary:", error);
+            return [];
+          }
+        }
+
+        prepareQuestions() {
+          return this.vocabulary.map((word) => {
+            // Get three random wrong answers
+            const wrongAnswers = this.vocabulary
+              .filter((w) => w.id !== word.id)
+              .sort(() => 0.5 - Math.random())
+              .slice(0, 3)
+              .map((w) => w.vietnamese);
+
+            // Add correct answer and shuffle
+            const options = [...wrongAnswers, word.vietnamese].sort(
+              () => 0.5 - Math.random()
+            );
+
+            return {
+              word: word.english,
+              correctAnswer: word.vietnamese,
+              options: options,
+              image: word.image,
+            };
+          });
+        }
+
+        setupEventListeners() {
+          // Add back button
+          const headerDiv = document.querySelector(".header");
+          if (headerDiv) {
+            const backButton = document.createElement("button");
+            backButton.className = "back-button";
+            backButton.innerHTML =
+              '<i class="fas fa-arrow-left"></i> Back to Vocabulary';
+            backButton.onclick = () =>
+              (window.location.href = "vocabulary.html");
+            headerDiv.insertBefore(backButton, headerDiv.firstChild);
+          }
+
+          // Keyboard shortcuts
+          document.addEventListener("keydown", (e) => {
+            switch (e.key) {
+              case "ArrowLeft":
+                this.previousQuestion();
+                break;
+              case "ArrowRight":
+                this.nextQuestion();
+                break;
+              case " ":
+                if (!this.answerChecked) {
+                  this.checkAnswer();
+                } else {
+                  this.nextQuestion();
+                }
+                e.preventDefault();
+                break;
+              case "1":
+              case "2":
+              case "3":
+              case "4":
+                const index = parseInt(e.key) - 1;
+                if (
+                  index <
+                  this.questions[this.currentQuestionIndex].options.length
+                ) {
+                  this.selectOption(index);
+                }
+                break;
+            }
+          });
+        }
+
+        updateDisplay() {
+          if (this.questions.length === 0) {
+            this.showNotification("No words available for practice", "error");
+            return;
+          }
+
+          const currentQuestion = this.questions[this.currentQuestionIndex];
+
+          // Update progress
+          document.getElementById("currentQuestion").textContent =
+            this.currentQuestionIndex + 1;
+          document.getElementById("totalQuestions").textContent =
+            this.questions.length;
+          document.getElementById("score").textContent = this.score;
+
+          // Update question
+          document.getElementById("question").textContent =
+            currentQuestion.word;
+
+          // Update image if available
+          const wordImage = document.getElementById("wordImage");
+          if (currentQuestion.image) {
+            wordImage.innerHTML = `<img src="${currentQuestion.image}" alt="${currentQuestion.word}">`;
+          } else {
+            wordImage.innerHTML = "";
+          }
+
+          // Update options
+          const optionsContainer = document.getElementById("options");
+          optionsContainer.innerHTML = currentQuestion.options
+            .map(
+              (option, index) => `
+                        <div class="option" onclick="writingQuiz.selectOption(${index})">
+                            ${option}
+                        </div>
+                    `
+            )
+            .join("");
+
+          // Reset state
+          this.selectedAnswer = null;
+          this.answerChecked = false;
+
+          // Update buttons
+          document.getElementById("prevBtn").disabled =
+            this.currentQuestionIndex === 0;
+          document.getElementById("nextBtn").disabled =
+            this.currentQuestionIndex === this.questions.length - 1;
+          document.getElementById("checkBtn").disabled = false;
+
+          // Auto-play pronunciation if enabled
+          if (this.settings.autoPlay) {
+            this.playAudio();
+          }
+        }
+
+        selectOption(index) {
+          if (this.answerChecked) return;
+
+          const options = document.querySelectorAll(".option");
+          options.forEach((option) => option.classList.remove("selected"));
+          options[index].classList.add("selected");
+          this.selectedAnswer = index;
+        }
+
+        checkAnswer() {
+          if (this.answerChecked || this.selectedAnswer === null) return;
+
+          const currentQuestion = this.questions[this.currentQuestionIndex];
+          const options = document.querySelectorAll(".option");
+          const selectedOption = options[this.selectedAnswer];
+          const correctOptionIndex = currentQuestion.options.indexOf(
+            currentQuestion.correctAnswer
+          );
+
+          if (
+            currentQuestion.options[this.selectedAnswer] ===
+            currentQuestion.correctAnswer
+          ) {
+            selectedOption.classList.add("correct");
+            this.score++;
+            this.showNotification("Correct!", "success");
+          } else {
+            selectedOption.classList.add("incorrect");
+            options[correctOptionIndex].classList.add("correct");
+            this.showNotification("Incorrect!", "error");
+          }
+
+          document.getElementById("score").textContent = this.score;
+          document.getElementById("checkBtn").disabled = true;
+          this.answerChecked = true;
+        }
+
+        nextQuestion() {
+          if (this.currentQuestionIndex < this.questions.length - 1) {
+            this.currentQuestionIndex++;
+            this.updateDisplay();
+          }
+        }
+
+        previousQuestion() {
+          if (this.currentQuestionIndex > 0) {
+            this.currentQuestionIndex--;
+            this.updateDisplay();
+          }
+        }
+
+        playAudio() {
+          const currentWord = this.questions[this.currentQuestionIndex].word;
+          try {
+            const utterance = new SpeechSynthesisUtterance(currentWord);
+            utterance.lang = "en-US";
+            utterance.rate = 0.9;
+            speechSynthesis.speak(utterance);
+          } catch (error) {
+            console.error("Error playing audio:", error);
+            this.showNotification("Couldn't play audio", "error");
+          }
+        }
+
+        showNotification(message, type = "success") {
+          const notification = document.getElementById("notification");
+          notification.textContent = message;
+          notification.style.backgroundColor =
+            type === "success" ? "#2ecc71" : "#e74c3c";
+          notification.style.display = "block";
+
+          setTimeout(() => {
+            notification.style.display = "none";
+          }, 3000);
+        }
+
+        applyDarkMode() {
+          if (this.settings.darkMode) {
+            document.body.classList.add("dark-mode");
+          }
+        }
+      }
+
+      // Initialize the quiz
+      const writingQuiz = new WritingQuiz();
+    </script>
+  </body>
+</html>
