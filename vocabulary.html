@@ -2115,10 +2115,14 @@
         }
         exportData() {
           try {
-            // Lấy dữ liệu từ thư mục hiện tại
-            const currentFolder = this.folders.find(
+            // Lấy danh sách folders từ localStorage thay vì dùng this.folders
+            const folders = JSON.parse(
+              localStorage.getItem("vocabulary_folders") || "[]"
+            );
+            const currentFolder = folders.find(
               (f) => f.id === this.currentFolderId
             );
+
             if (!currentFolder) {
               this.showNotification("No folder selected", "error");
               return;
@@ -2134,11 +2138,10 @@
 
             // Mã hóa dữ liệu
             const jsonString = JSON.stringify(shareData);
-            const compressedData = this.compressData(jsonString);
-            const shareCode = btoa(compressedData); // Convert to base64
+            const compressedData = LZString.compressToBase64(jsonString);
 
             // Hiển thị dialog với mã chia sẻ
-            this.showShareDialog(shareCode);
+            this.showShareDialog(compressedData);
           } catch (error) {
             console.error("Export error:", error);
             this.showNotification("Failed to generate share code", "error");
